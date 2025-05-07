@@ -1,0 +1,295 @@
+PYQ Quiz App with Timer
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title> PYQ Quiz App with Timer </title>
+<style>
+
+  body {
+    font-family: Arial, sans-serif;
+	background-color: #f4f4f4;
+    padding: 20px;
+  }
+  .quiz-container {
+    display: none;
+    background-color: #fff;
+    padding: 20px;
+    border-radius: 10px;
+    max-width: 600px;
+    margin: auto;
+  }
+  .question {
+    font-size: 18px;
+	text-align: left;
+    margin-bottom: 10px;
+  }
+  .options button {
+    display: block;
+	text-align: left;
+    margin: 10px 0;
+    padding: 10px;
+    width: 100%;
+    background-color: #e0e0e0;
+    border: none;
+    cursor: pointer;
+    transition: background 0.3s;
+  }
+  .options button.selected {
+    background-color: #007bff;
+	color: #fff;
+  }
+  .options button.correct {
+    background-color: #dc3545;
+    color: #fff;
+  }
+
+  .level-buttons button {
+    background-color: #007bff;
+    color: white;
+    padding: 10px 20px;
+    margin: 5px;
+    border: none;
+    cursor: pointer;
+  }
+
+  .extra-buttons button,
+  .navigation-buttons button {
+    background-color: #888;
+    color: white;
+    padding: 10px 20px;
+    margin: 5px;
+    border: none;
+    cursor: pointer;
+  }
+
+  .navigation-buttons button:last-child {
+    background-color: green;
+  }
+
+  .navigation-buttons button.submit-clicked {
+    background-color: red;
+  }
+
+  .solution, .video-container, .solution-pdf {
+    margin-top: 10px;
+  }
+
+  iframe {
+    width: 100%;
+    height: 300px;
+  }
+
+  .timer {
+    font-weight: bold;
+    margin-bottom: 10px;
+  }
+</style>
+</head>
+<body>
+
+  <div class="level-buttons">
+    <button onclick="startQuiz('easy')">Easy</button>
+    <button onclick="startQuiz('medium')">Medium</button>
+    <button onclick="startQuiz('advanced')">Advanced</button>
+  </div>
+
+  <div class="quiz-container" id="quiz-container">
+    <div class="timer" id="timer">Time: 0s</div>
+    <div class="question" id="question"></div>
+    <div id="questionPdfContainer"></div>
+    <div class="options" id="options"></div>
+    <div class="extra-buttons">
+      <button onclick="showSolution()">Show Solution</button>
+      <button onclick="showVideo()">Watch Video</button>
+    </div>
+    <div class="navigation-buttons">
+      <button onclick="prevQuestion()">Previous</button>
+      <button onclick="nextQuestion()">Next</button>
+      <button onclick="submitQuiz()">Submit</button>
+    </div>
+    <div class="solution" id="solution" style="display: none;"></div>
+    <div class="solution-pdf" id="solutionPdf" style="display: none;"></div>
+    <div class="video-container" id="videoContainer" style="display: none;"></div>
+    <div id="score" style="margin-top: 20px; font-weight: bold;"></div>
+  </div>
+
+  <script>
+const quizData = {
+  easy: [
+    {
+      question: "Your easy question 1?",
+      options: ["Option A", "Option B", "Option C", "Option D"],
+      answer: 1, // index of the correct option (0-based)
+      solution: "Explain the correct answer here.",
+      solutionPdf: "", // optional Google Drive preview URL
+      video: "https://www.youtube.com/embed/411XmlzmvQc",
+      questionPdf: ""   // optional PDF link for question
+    },
+    {
+      question: "Your easy question 2?",
+      options: ["Option A", "Option B", "Option C", "Option D"],
+      answer: 3,
+      solution: "Explain here.",
+      solutionPdf: "https://drive.google.com/file/d/1fCy6R52Hs4iFm0ZF0TAf7vW7tMLvBjAC/preview",
+      video: "",
+      questionPdf: ""
+    },
+    // Add up to 25 questions
+  ],
+  medium: [
+    {
+      question: "Your medium question 1?",
+      options: ["Option A", "Option B", "Option C", "Option D"],
+      answer: 0,
+      solution: "Explain the answer.",
+      solutionPdf: "",
+      video: "",
+      questionPdf: ""
+    },
+    {
+      question: "Your medium question 2?",
+      options: ["Option A", "Option B", "Option C", "Option D"],
+      answer: 1,
+      solution: "Explain the answer.",
+      solutionPdf: "",
+      video: "",
+      questionPdf: "https://drive.google.com/file/d/1fCy6R52Hs4iFm0ZF0TAf7vW7tMLvBjAC/preview"
+    },
+    {
+      question: "Your medium question 2?",
+      options: ["Option A", "Option B", "Option C", "Option D"],
+      answer: 2,
+      solution: "Explain the answer.",
+      solutionPdf: "",
+      video: "",
+      questionPdf: "https://drive.google.com/file/d/1fCy6R52Hs4iFm0ZF0TAf7vW7tMLvBjAC/preview"
+    },
+    {
+      question: "Your medium question 2?",
+      options: ["Option A", "Option B", "Option C", "Option D"],
+      answer: 3,
+      solution: "Explain the answer.",
+      solutionPdf: "",
+      video: "",
+      questionPdf: "https://drive.google.com/file/d/1fCy6R52Hs4iFm0ZF0TAf7vW7tMLvBjAC/preview"
+    },
+    // Add up to 25 questions
+  ],
+  advanced: [
+    {
+      question: "Your advanced question 1?",
+      options: ["Option A", "Option B", "Option C", "Option D"],
+      answer: 3,
+      solution: "Explain it here.",
+      solutionPdf: "",
+      video: "",
+      questionPdf: ""
+    },
+    // Add up to 25 questions
+  ]
+};
+
+    let currentLevel = '';
+    let currentQuestionIndex = 0;
+    let score = 0;
+    let userAnswers = [];
+    let timer = 0;
+    let timerInterval;
+
+    function startQuiz(level) {
+      currentLevel = level;
+      currentQuestionIndex = 0;
+      score = 0;
+      userAnswers = [];
+      timer = 0;
+      document.getElementById('quiz-container').style.display = 'block';
+      showQuestion();
+      clearInterval(timerInterval);
+      timerInterval = setInterval(() => {
+        timer++;
+        document.getElementById('timer').textContent = `Time: ${timer}s`;
+      }, 1000);
+    }
+
+    function showQuestion() {
+      const questionData = quizData[currentLevel][currentQuestionIndex];
+      document.getElementById('question').textContent = questionData.question;
+
+      const pdfContainer = document.getElementById('questionPdfContainer');
+      pdfContainer.innerHTML = questionData.questionPdf
+        ? `<iframe src="${questionData.questionPdf}" frameborder="0"></iframe>`
+        : '';
+
+      const optionsContainer = document.getElementById('options');
+      optionsContainer.innerHTML = '';
+      questionData.options.forEach((option, index) => {
+        const btn = document.createElement('button');
+        btn.textContent = option;
+        btn.className = userAnswers[currentQuestionIndex] === index ? 'selected' : '';
+        btn.onclick = () => {
+          userAnswers[currentQuestionIndex] = index;
+          const isCorrect = index === questionData.answer;
+          Array.from(optionsContainer.children).forEach((btn, i) => {
+            btn.className = i === index ? (isCorrect ? 'correct' : 'selected') : '';
+          });
+        };
+        optionsContainer.appendChild(btn);
+      });
+
+      document.getElementById('solution').style.display = 'none';
+      document.getElementById('solutionPdf').style.display = 'none';
+      document.getElementById('videoContainer').style.display = 'none';
+    }
+
+    function showSolution() {
+      const q = quizData[currentLevel][currentQuestionIndex];
+      document.getElementById('solution').style.display = 'block';
+      document.getElementById('solution').textContent = q.solution;
+      document.getElementById('solutionPdf').innerHTML = q.solutionPdf
+        ? `<iframe src="${q.solutionPdf}" frameborder="0"></iframe>`
+        : '';
+      document.getElementById('solutionPdf').style.display = q.solutionPdf ? 'block' : 'none';
+    }
+
+    function showVideo() {
+      const q = quizData[currentLevel][currentQuestionIndex];
+      document.getElementById('videoContainer').innerHTML = q.video
+        ? `<iframe src="${q.video}" frameborder="0" allowfullscreen></iframe>`
+        : '';
+      document.getElementById('videoContainer').style.display = q.video ? 'block' : 'none';
+    }
+
+    function nextQuestion() {
+      if (currentQuestionIndex < quizData[currentLevel].length - 1) {
+        currentQuestionIndex++;
+        showQuestion();
+      }
+    }
+
+    function prevQuestion() {
+      if (currentQuestionIndex > 0) {
+        currentQuestionIndex--;
+        showQuestion();
+      }
+    }
+
+function submitQuiz() {
+  clearInterval(timerInterval);
+  score = 0;
+  quizData[currentLevel].forEach((q, idx) => {
+    if (userAnswers[idx] === q.answer) score++;
+  });
+  document.getElementById('score').textContent =
+    `You scored ${score} out of ${quizData[currentLevel].length} in ${timer} seconds.`;
+
+  // Add red feedback color
+  const submitButton = document.querySelector('.navigation-buttons button:last-child');
+  if (submitButton) {
+    submitButton.classList.add('submit-clicked');
+  }
+}
+  </script>
+</body>
+</html>
